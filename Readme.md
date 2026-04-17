@@ -15,8 +15,10 @@ plugins.json
 
 # 執行 / Run
 
-./run.sh        # Linux / macOS
-run.bat         # Windows
+```bash
+./run.sh    # Linux / macOS
+run.bat     # Windows
+```
 
 ---
 
