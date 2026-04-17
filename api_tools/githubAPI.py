@@ -4,7 +4,10 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv()
-_GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+_raw = os.getenv("GITHUB_TOKEN", "")
+_GITHUB_TOKEN = _raw if _raw.isascii() and _raw.strip() else None
+if not _GITHUB_TOKEN:
+    print("⚠️  未設定有效的 GITHUB_TOKEN")
 
 def _get(url, **kwargs):
     headers = kwargs.pop("headers", {})
