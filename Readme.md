@@ -13,7 +13,7 @@ plugins.json
 
 ---
 
-# 執行 / Run
+## 執行 / Run
 
 ```bash
 ./run.sh    # Linux / macOS
