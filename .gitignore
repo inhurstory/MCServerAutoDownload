@@ -1,0 +1,6 @@
+/__pycache__
+/downloads
+.env
+/upgrading
+plugins.json
+/api_tools/__pycache__

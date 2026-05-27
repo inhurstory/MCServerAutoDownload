@@ -1,0 +1,24 @@
+{
+  "spigot": [
+    { "id": "vault.34315",        "servers": ["main", "survival"] },
+    { "id": "placeholderapi.6245","servers": ["main", "survival"] },
+    { "id": "spark.57242",        "servers": ["main"] }
+  ],
+  "modrinth": [
+    { "id": "luckperms",   "servers": ["main", "survival"] },
+    { "id": "worldedit",   "servers": ["main", "survival"] },
+    { "id": "worldguard",  "servers": ["main", "survival"] },
+    { "id": "viaversion",  "servers": ["main"] },
+    { "id": "viabackwards","servers": ["main"] }
+  ],
+  "github": [
+    { "repo": "dmulloy2/ProtocolLib",      "servers": ["main", "survival"] },
+    { "repo": "DiscordSRV/DiscordSRV",     "servers": ["main"] }
+  ],
+  "self_made": [
+    { "file": "MyCustomPlugin-1.0.jar", "servers": ["main"] }
+  ],
+  "other": [
+    { "file": "SomePaidPlugin-2.0.jar", "servers": ["main", "survival"] }
+  ]
+}
