@@ -23,12 +23,12 @@ def download_spigot_plugin_by_id(resource_id, save_dir="."):
         return False
     plugin_title = res.json()["name"]
 
-    # 2. 撈取版本資訊
-    res = _get(f"https://api.spiget.org/v2/resources/{resource_id}/versions", headers=headers)
+    # 2. 撈取版本資訊 (Spiget API 預設只回傳 10 筆，需加 size=1000 以獲取完整列表，最後一個為最新版)
+    res = _get(f"https://api.spiget.org/v2/resources/{resource_id}/versions?size=1000", headers=headers)
     if res.status_code != 200 or not res.json():
         print(f"【！】無法取得 {plugin_title} 的版本資訊")
         return False
-    version_name = res.json()[0]["name"]
+    version_name = res.json()[-1]["name"]
 
     # 3. 下載
     res = _get(f"https://api.spiget.org/v2/resources/{resource_id}/download", headers={
@@ -39,8 +39,17 @@ def download_spigot_plugin_by_id(resource_id, save_dir="."):
         print(f"【！】下載失敗：HTTP {res.status_code}")
         return False
 
-    # 4. 儲存（移除 Windows 非法字元）
-    safe_title = re.sub(r'[\\/:*?"<>|\[\]]', '_', plugin_title)
+    # 4. 儲存（清理 Spigot 標題中常見的 SEO 關鍵字，使其成為乾淨的檔名）
+    # 移除所有中括號及其中間的內容，例如 [Free], [1.8-1.20]
+    cleaned_title = re.sub(r'\[[^\]]*\]', '', plugin_title)
+    # 切除首個 | 以及之後的內容
+    cleaned_title = re.split(r'\|', cleaned_title)[0].strip()
+    # 移除 Windows 非法檔名字元
+    safe_title = re.sub(r'[\\/:*?"<>|]', '', cleaned_title)
+    # 將多個空白與底線替換為單個底線
+    safe_title = re.sub(r'[\s_]+', '_', safe_title).strip('_')
+
+    
     filename = f"{safe_title}-{version_name}.jar"
     save_path = os.path.join(save_dir, filename)
     with open(save_path, "wb") as f:
@@ -49,3 +58,4 @@ def download_spigot_plugin_by_id(resource_id, save_dir="."):
     print(f"已下載最新版本：{plugin_title} v{version_name}")
     print(f"檔案儲存於：{save_path}")
     return save_path
+

@@ -39,7 +39,13 @@ def find_version_for_mc(versions, mc_version):
             default=99
         )
         mc_match = 0 if mc_version in v["game_versions"] else 1
-        return (mc_match, loader_rank)
+        
+        # 提取 date_published 的數字作為發布順序依據 (時間戳記負數，越新則值越小排越前)
+        date_str = v.get("date_published", "")
+        digits = "".join(c for c in date_str if c.isdigit())
+        date_rank = -int(digits) if digits else 0
+        
+        return (mc_match, loader_rank, date_rank)
 
     valid.sort(key=sort_key)
     best = valid[0]

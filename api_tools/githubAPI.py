@@ -35,7 +35,23 @@ def download_latest_github_release(repo, save_dir="downloads"):
         if not assets:
             return False, f"【！】[{repo}] 無 assets 可供下載", None
 
-        asset = assets[0]
+        # 優先過濾出執行用的主 Jar 檔 (排除開發包與其他伺服器平台如 velocity, bungee, fabric)
+        jar_assets = [a for a in assets if a["name"].endswith(".jar")]
+        if jar_assets:
+            # 排除非 Bukkit/Paper 平台的關鍵字
+            exclude_keywords = ["api", "sources", "javadoc", "dev", "lib", "velocity", "bungeecord", "bungee", "sponge", "fabric", "forge", "neoforge"]
+            primary_jars = [a for a in jar_assets if not any(x in a["name"].lower() for x in exclude_keywords)]
+            if primary_jars:
+                # 若其中有明確包含 paper/spigot/bukkit 關鍵字，優先選擇
+                preferred_jars = [a for a in primary_jars if any(x in a["name"].lower() for x in ["paper", "spigot", "bukkit"])]
+                if preferred_jars:
+                    asset = max(preferred_jars, key=lambda a: a.get("size", 0))
+                else:
+                    asset = max(primary_jars, key=lambda a: a.get("size", 0))
+            else:
+                asset = max(jar_assets, key=lambda a: a.get("size", 0))
+        else:
+            asset = assets[0]
         download_url = asset["browser_download_url"]
         filename = asset["name"]
         filepath = os.path.join(save_dir, filename)

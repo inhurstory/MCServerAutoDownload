@@ -1,12 +1,26 @@
 import os
 import json
 import shutil
+import sys
 from api_tools.modrinthAPI import download_modrinth_plugin
 from api_tools.spigotAPI import download_spigot_plugin_by_id
 from api_tools.githubAPI import download_latest_github_release
 
+# 修正 Windows 主控台下 print 特殊字元 (如 ®) 產生的 UnicodeEncodeError
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
+if sys.stderr.encoding != 'utf-8':
+    try:
+        sys.stderr.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
+
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
 
 with open("plugins.json", encoding="utf-8") as f:
     cfg = json.load(f)
@@ -21,7 +35,7 @@ def distribute(filepath, servers):
 # 處理 Modrinth 插件下載
 print("\n===  下載 Modrinth 插件 ===")
 for entry in cfg["modrinth"]:
-    success, msg, filepath = download_modrinth_plugin(entry["id"], mc_version="1.21.5", save_dir=DOWNLOAD_DIR)
+    success, msg, filepath = download_modrinth_plugin(entry["id"], mc_version="21.1.2", save_dir=DOWNLOAD_DIR)
     print(msg)
     if success and filepath:
         distribute(filepath, entry["servers"])
