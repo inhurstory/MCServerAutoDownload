@@ -15,6 +15,13 @@ def _get(url, **kwargs):
         headers["Authorization"] = f"Bearer {_GITHUB_TOKEN}"
     for _ in range(3):
         res = requests.get(url, headers=headers, **kwargs)
+        # An expired or revoked token must not block access to public releases.
+        # Retry once without credentials; callers still get the normal HTTP
+        # error if the repository itself is private or unavailable.
+        if res.status_code == 401 and "Authorization" in headers:
+            print("【！】GITHUB_TOKEN 無效，改用公開 GitHub API 重試")
+            headers = {key: value for key, value in headers.items() if key.lower() != "authorization"}
+            res = requests.get(url, headers=headers, **kwargs)
         if res.status_code != 429:
             return res
         wait = int(res.headers.get("Retry-After", 60))

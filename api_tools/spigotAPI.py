@@ -39,6 +39,13 @@ def download_spigot_plugin_by_id(resource_id, save_dir="."):
         print(f"【！】下載失敗：HTTP {res.status_code}")
         return False
 
+    # A number of resource pages return a WAF/login HTML document with HTTP
+    # 200.  Never stage that response as a plugin JAR.
+    if not res.content.startswith(b"PK\\x03\\x04"):
+        content_type = res.headers.get("Content-Type", "unknown")
+        print(f"【！】下載內容不是 JAR（Content-Type: {content_type}），已略過")
+        return False
+
     # 4. 儲存（清理 Spigot 標題中常見的 SEO 關鍵字，使其成為乾淨的檔名）
     # 移除所有中括號及其中間的內容，例如 [Free], [1.8-1.20]
     cleaned_title = re.sub(r'\[[^\]]*\]', '', plugin_title)

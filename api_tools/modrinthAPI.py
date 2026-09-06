@@ -1,6 +1,7 @@
 import requests
 import os
 import time
+import hashlib
 
 def _get(url, **kwargs):
     for _ in range(3):
@@ -13,12 +14,17 @@ def _get(url, **kwargs):
     return res
 
 def search_modrinth_project_id(slug):
-    res = _get("https://api.modrinth.com/v2/search", params={"query": slug, "limit": 1})
+    # A search result is only a best-effort text match and can silently point
+    # at a different project.  Modrinth accepts a project slug directly.
+    res = _get(f"https://api.modrinth.com/v2/project/{slug}")
     res.raise_for_status()
-    hits = res.json()["hits"]
-    if not hits:
+    project = res.json()
+    # Some Paper-compatible projects are categorised as a mod by Modrinth.
+    # The exact slug is the identity check; loader filtering happens later.
+    normalise = lambda value: "".join(ch for ch in value.lower() if ch.isalnum())
+    if normalise(project.get("slug", "")) != normalise(slug):
         return None
-    return hits[0]["project_id"]
+    return project["id"]
 
 def fetch_modrinth_versions(project_id):
     res = _get(f"https://api.modrinth.com/v2/project/{project_id}/version")
@@ -28,7 +34,7 @@ def fetch_modrinth_versions(project_id):
 LOADER_PRIORITY = ["paper", "spigot", "bukkit"]
 
 def find_version_for_mc(versions, mc_version):
-    # 回傳 (version, warn)；依 paper > spigot > bukkit 優先，僅接受這三種 loader
+    # 回傳 (version, warn)；僅接受 Paper/Spigot/Bukkit 可用版本。
     valid = [v for v in versions if any(l in v["loaders"] for l in LOADER_PRIORITY)]
     if not valid:
         return None, False
@@ -47,9 +53,19 @@ def find_version_for_mc(versions, mc_version):
         
         return (mc_match, loader_rank, date_rank)
 
-    valid.sort(key=sort_key)
-    best = valid[0]
-    warn = mc_version not in best["game_versions"]
+    matching = [v for v in valid if mc_version in v["game_versions"]]
+    if matching:
+        # For an exact target match, prefer the native Paper artifact.
+        matching.sort(key=sort_key)
+        best = matching[0]
+        warn = False
+    else:
+        # Do not mistake an older Paper build for "latest" merely because its
+        # loader has a higher priority.  With no target match, publication date
+        # is the best available version signal.
+        valid.sort(key=lambda v: (sort_key(v)[2], sort_key(v)[1]))
+        best = valid[0]
+        warn = True
     return best, warn
 
 def download_file(url, filepath):
@@ -57,6 +73,16 @@ def download_file(url, filepath):
     res.raise_for_status()
     with open(filepath, "wb") as f:
         f.write(res.content)
+
+def _select_primary_jar(files):
+    jars = [item for item in files if item.get("filename", "").lower().endswith(".jar")]
+    if not jars:
+        return None
+    # Modrinth marks the intended runtime artifact as primary.  This avoids
+    # selecting an API, sources, or auxiliary artifact merely because it is
+    # first in the response.
+    primary = [item for item in jars if item.get("primary")]
+    return (primary or jars)[0]
 
 def download_modrinth_plugin(slug, mc_version, save_dir):
     try:
@@ -71,14 +97,23 @@ def download_modrinth_plugin(slug, mc_version, save_dir):
         if not version:
             return False, f"找不到 {slug} 的任何可下載版本", None
 
-        file_info = version["files"][0]
+        file_info = _select_primary_jar(version["files"])
+        if not file_info:
+            return False, f"{slug} 的選定版本沒有可安裝的 JAR", None
         filename = file_info["filename"]
         filepath = os.path.join(save_dir, filename)
 
         download_file(file_info["url"], filepath)
+        expected_hash = file_info.get("hashes", {}).get("sha512")
+        if expected_hash:
+            with open(filepath, "rb") as downloaded:
+                actual_hash = hashlib.sha512(downloaded.read()).hexdigest()
+            if actual_hash.lower() != expected_hash.lower():
+                os.remove(filepath)
+                return False, f"【！】{slug} 下載雜湊不符，已拒絕檔案", None
 
         if warn:
-            return True, f"【！】{slug} 沒有支援 MC {mc_version}，已下載較舊版本 {version['version_number']} - {filename}", filepath
+            return True, f"【！】{slug} 尚未宣告支援 MC {mc_version}；已下載最新可用發行版 {version['version_number']} - {filename}", filepath
         else:
             return True, f"已下載 {slug} - {filename}", filepath
     except Exception as e:
